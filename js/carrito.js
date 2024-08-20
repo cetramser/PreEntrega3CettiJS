@@ -1,10 +1,11 @@
-
 let carrito = [];
 
 // Cargar carrito desde localStorage
 function cargarCarritoDesdeLocalStorage() {
-    // Uso de operador ternario para asignar valor a carrito
-    carrito = localStorage.getItem('carrito') ? JSON.parse(localStorage.getItem('carrito')) : [];
+    const carritoGuardado = localStorage.getItem('carrito');
+    if (carritoGuardado) {
+        carrito = JSON.parse(carritoGuardado);
+    }
 }
 
 // Guardar carrito en localStorage
@@ -12,22 +13,35 @@ function guardarCarritoEnLocalStorage() {
     localStorage.setItem('carrito', JSON.stringify(carrito));
 }
 
+// Actualizar carrito: guarda y muestra los cambios
+function actualizarCarrito() {
+    guardarCarritoEnLocalStorage();
+    mostrarCarrito();
+}
+
 // Agregar producto al carrito o incrementar su cantidad si ya está en el carrito
 function agregarAlCarrito(idProducto) {
-    const producto = productos.find(({ id }) => id == idProducto);
-    const productoEnCarrito = carrito.find(({ id }) => id == idProducto);
+    const producto = productos.find(p => p.id == idProducto);
+    if (!producto) {
+        console.error("Producto no encontrado");
+        return;
+    }
+    
+    const productoEnCarrito = carrito.find(item => item.id == idProducto);
 
-    productoEnCarrito 
-        ? productoEnCarrito.cantidad += 1 
-        : carrito.push({ ...producto, cantidad: 1 });
+    if (productoEnCarrito) {
+        // Si el producto ya está en el carrito, incrementar su cantidad
+        productoEnCarrito.cantidad += 1;
+    } else {
+        // Si no está en el carrito, añadirlo con cantidad 1
+        carrito.push({ ...producto, cantidad: 1 });
+    }
 
-    guardarCarritoEnLocalStorage();
-
+    actualizarCarrito();
+    
     Toastify({
         text: `${producto.nombre} ha sido añadido al carrito.`,
         duration: 2000,
-        destination: "https://github.com/apvarun/toastify-js",
-        newWindow: true,
         close: true,
         gravity: "top", // `top` or `bottom`
         position: "right", // `left`, `center` or `right`
@@ -35,28 +49,34 @@ function agregarAlCarrito(idProducto) {
         style: {
             background: "#6c6450",
         },
-        onClick: function () { } 
+        onClick: function () { } // Callback after click
+    }).showToast();
 }
 
 // Calcular el total del carrito
 function calcularTotalCarrito() {
-    // 
-    return carrito.reduce((total, { precio, cantidad }) => total + precio * cantidad, 0);
+    return carrito.reduce((total, item) => {
+        const precio = item.precio || 0;
+        const cantidad = item.cantidad || 0;
+        return total + precio * cantidad;
+    }, 0);
 }
 
 // Mostrar productos en el carrito
 function mostrarCarrito() {
     const itemsCarrito = document.getElementById('items-carrito');
+    if (!itemsCarrito) return; // Evita errores si no se encuentra el elemento
+
     itemsCarrito.innerHTML = '';
 
-    carrito.forEach(({ id, imagen, nombre, precio, cantidad }) => {
+    carrito.forEach(item => {
         const itemCarrito = document.createElement('div');
         itemCarrito.className = 'item-carrito';
         itemCarrito.innerHTML = `
-            <img src="${imagen}" alt="${nombre}">
-            <h3>${nombre}</h3>
-            <p>$${precio} x ${cantidad} = $${precio * cantidad}</p>
-            <button onclick="eliminarDelCarrito(${id})">Eliminar</button>
+            <img src="${item.imagen}" alt="${item.nombre}">
+            <h3>${item.nombre}</h3>
+            <p>$${item.precio} x ${item.cantidad} = $${item.precio * item.cantidad}</p>
+            <button onclick="eliminarDelCarrito(${item.id})">Eliminar</button>
         `;
         itemsCarrito.appendChild(itemCarrito);
     });
@@ -71,9 +91,8 @@ function mostrarCarrito() {
 
 // Eliminar un producto del carrito
 function eliminarDelCarrito(idProducto) {
-    carrito = carrito.filter(({ id }) => id != idProducto);
-    guardarCarritoEnLocalStorage();
-    mostrarCarrito();
+    carrito = carrito.filter(item => item.id != idProducto);
+    actualizarCarrito();
 }
 
 // Proceder al pago
@@ -87,8 +106,9 @@ function procederAlPago() {
 
 // Inicializar funciones al cargar la página
 document.addEventListener('DOMContentLoaded', () => {
-    cargarCarritoDesdeLocalStorage();
+    cargarCarritoDesdeLocalStorage(); // Cargar el carrito desde el localStorage
 
-    // Uso de OR 
-    document.getElementById('items-carrito') && mostrarCarrito();
+    if (document.getElementById('items-carrito')) {
+        mostrarCarrito(); // Mostrar carrito si estamos en la página del carrito
+    }
 });
